@@ -1,0 +1,172 @@
+-- Carregando a biblioteca de UI
+local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/7yhx/kwargs_Ui_Library/main/source.lua"))()
+
+local UI = Lib:Create{
+   Theme = "Dark", -- ou outro tema
+   Size = UDim2.new(0, 555, 0, 400) -- Tamanho padrão
+}
+
+local Main = UI:Tab{
+   Name = "Main"
+}
+
+local Divider = Main:Divider{
+   Name = "Main Options"
+}
+
+local QuitDivider = Main:Divider{
+   Name = "Quit"
+}
+
+-- Função para matar todos os jogadores
+local function matarTodosJogadores()
+    -- Obter todos os jogadores no jogo
+    for _, jogador in pairs(game.Players:GetPlayers()) do
+        -- Verificar se o jogador tem um personagem e uma parte do corpo principal
+        if jogador.Character and jogador.Character:FindFirstChild("Humanoid") then
+            -- Matar o jogador definindo a saúde como 0
+            local humanoide = jogador.Character:FindFirstChild("Humanoid")
+            if humanoide then
+                humanoide.Health = 0  -- Define a saúde para 0, matando o jogador
+            end
+        end
+    end
+end
+
+-- Variáveis de controle
+local espAtivo = false  -- Inicializa o ESP como desativado
+local isLoopingKillAll = false  -- Controle do Loop Kill All
+
+-- Botão já existente para ativar/desativar o ESP
+local ToggleESP = Divider:Button{
+   Name = "Toggle ESP",
+   Description = "Ativa ou desativa o ESP.",
+   Callback = function()
+       espAtivo = not espAtivo  -- Inverte o estado do ESP
+       if espAtivo then
+           print("ESP ativado!")
+       else
+           print("ESP desativado!")
+       end
+   end
+}
+
+-- Função de Toggle para ativar o Loop Kill All
+local LoopKillAll = Divider:Toggle{
+   Name = "Loop kill all",
+   Description = "Loop kills everyone in the game.",
+   Callback = function(State)
+       isLoopingKillAll = State  -- Atualiza o estado do toggle
+
+       if State then
+           -- Se o toggle estiver ativado (True), começa a matar todos os jogadores a cada 1 segundo
+           while isLoopingKillAll do
+               matarTodosJogadores()  -- Chama a função para matar todos os jogadores
+               wait(1)  -- Espera 1 segundo antes de matar novamente
+           end
+       end
+   end
+}
+
+local OtherToggleStyle = Divider:Toggle{
+   Name = "2nd style of toggle",
+   Style = 2
+}
+
+local Players = Divider:Dropdown{
+   Name = "Player list",
+   Options = {"Player1", "Player2", "Player3", "Player4", "Player5"},
+   Callback = function(Value)
+       print(Value)
+   end
+}
+
+Divider:ColorPicker{
+   Name = "ESP color",
+   Default = Color3.fromRGB(0, 255, 255), -- Cor padrão
+   Callback = function(Value)
+       print(Value)
+   end
+}
+
+-- Configurações de ESP
+local corAzulCielo = Color3.fromRGB(0, 191, 255)  -- Cor azul céu
+local distanciaMaxima = 500  -- Distância máxima para marcar jogadores
+local FOV = 60  -- FOV em graus
+
+-- Obtendo serviços necessários
+local PlayersService = game:GetService("Players")
+local Camera = game:GetService("Workspace").CurrentCamera
+local RunService = game:GetService("RunService")
+
+-- Função para desenhar setas
+local function desenharSeta(jogador)
+    local screenPos = Camera:WorldToScreenPoint(jogador.Character.HumanoidRootPart.Position)
+    
+    -- Se o jogador está fora da tela
+    if screenPos.Z < 0 then
+        -- Criar uma seta na tela
+        local seta = Instance.new("Frame")
+        seta.AnchorPoint = Vector2.new(0.5, 0.5)
+        seta.Size = UDim2.new(0, 20, 0, 40)
+        seta.Position = UDim2.new(0, screenPos.X, 0, screenPos.Y)
+        seta.BackgroundColor3 = corAzulCielo
+        seta.Rotation = math.atan2(screenPos.Y - Camera.ViewportSize.Y / 2, screenPos.X - Camera.ViewportSize.X / 2) * (180 / math.pi)
+        seta.Parent = game.CoreGui
+    end
+end
+
+-- Função para verificar o FOV
+local function estaNoFOV(jogador)
+    local direçãoDoJogador = (jogador.Character.HumanoidRootPart.Position - Camera.CFrame.Position).unit
+    local visãoCamera = Camera.CFrame.LookVector
+
+    local angulo = math.acos(direçãoDoJogador:Dot(visãoCamera)) * (180 / math.pi)
+
+    return angulo <= FOV / 2
+end
+
+-- Monitorando jogadores (deve executar o ESP apenas quando `espAtivo` for verdadeiro)
+RunService.RenderStepped:Connect(function()
+    if espAtivo then  -- Só ativa o ESP se a variável for verdadeira
+        for _, jogador in ipairs(PlayersService:GetPlayers()) do
+            if jogador.Character and jogador.Character:FindFirstChild("HumanoidRootPart") then
+                if jogador ~= PlayersService.LocalPlayer then
+                    if (jogador.Character.HumanoidRootPart.Position - Camera.CFrame.Position).magnitude <= distanciaMaxima then
+                        if estaNoFOV(jogador) then
+                            -- Se o jogador está no FOV, apenas desenha a seta
+                            desenharSeta(jogador)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+Divider:Box{
+   Name = "Car name",
+   ClearText = true, -- Se a caixa de texto deve limpar ao focar ou não
+   Callback = function(Value)
+       print(Value)
+   end
+}
+
+Divider:SearchDropdown{
+   Name = "Teleports",
+   Options = {"Pleasant Park", "Loot Lake", "Tomato Town", "Wailing Woods", "Anarchy Acres", "Retail Row"},
+   ClearText = false, -- padrão
+   Callback = function(Value)
+       print(Value)
+   end
+}
+
+local Quit = QuitDivider:Button{
+   Name = "Closes the ui library.",
+   Callback = function()
+       UI:Quit{
+           Message = "Goodbye...", -- Mensagem ao fechar
+           Length = 1 -- Tempo que a mensagem de despedida ficará visível
+       }
+   end
+}
